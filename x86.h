@@ -17,6 +17,13 @@ inl(int port)
 	return data;
 }
 
+static inline uint16
+inw(int port) {
+    uint16 data;
+    asm volatile("inw %w1,%0": "=a" (data): "d" (port));
+    return data;
+}
+
 static inline void
 insl(int port, void *addr, int cnt)
 {

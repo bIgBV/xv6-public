@@ -33,6 +33,15 @@ unsigned int create_mask(int start, int offset) {
 	 (((pid) & PCI_PRODUCT_MASK) << PCI_PRODUCT_SHIFT))	\
 
 /*
+ * PCI capabalities register
+ */
+
+#define PCI_CAP_REG                 0x34
+// The bottom two bits are reserved and have to be masked off
+#define PCI_CAP_MASK                0xfc
+#define PCI_CAP_POINTER(reg) \
+    (reg & create_mask(0, 8))
+/*
  * PCI BHLC = BIST/Header Type/Latency Timer/Cache Line Size Register.
  */
 #define	PCI_BHLC_REG			    0x0c

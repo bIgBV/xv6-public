@@ -1,3 +1,6 @@
+#include "types.h"
+
+// Virtio device IDs
 enum VIRTIO_DEVICE {
     RESERVED = 0,
     NETWORK_CARD = 1,
@@ -18,6 +21,7 @@ enum VIRTIO_DEVICE {
     INPUT_DEVICE = 16
 };
 
+// Transitional vitio device ids
 enum TRANSITIONAL_VIRTIO_DEVICE {
     T_NETWORK_CARD = 0X1000,
     T_BLOCK_DEVICE = 0X1001,
@@ -32,3 +36,33 @@ enum TRANSITIONAL_VIRTIO_DEVICE {
 const int VIRTIO_DEVICE_ID_BASE = 0x1040;
 // A virtio device will always have this vendor id
 const int VIRTIO_VENDOR_ID = 0x1AF4;
+
+struct virtio_pci_cap {
+    // Generic PCI field: PCI_CAP_ID_VNDR
+    uint8 cap_vendor;
+    //Generic PCI field: next ptr
+    uint8 cap_next;
+    // Generic PCI field: capability length
+    uint8 cap_lenth;
+    // Identifies the structure
+    uint8 cfg_type;
+    // Where to find it
+    uint8 bar;
+    // Pad to full dword
+    uint8 padding[3];
+    // Offset within bar
+    uint32 offset;
+    // Length of the structure, in bytes
+    uint32 length;
+};
+
+/* Common configuration */
+#define VIRTIO_PCI_CAP_COMMON_CFG        1
+/* Notifications */
+#define VIRTIO_PCI_CAP_NOTIFY_CFG        2
+/* ISR Status */
+#define VIRTIO_PCI_CAP_ISR_CFG           3
+/* Device specific configuration */
+#define VIRTIO_PCI_CAP_DEVICE_CFG        4
+/* PCI configuration access */
+#define VIRTIO_PCI_CAP_PCI_CFG           5

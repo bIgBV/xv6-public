@@ -1,4 +1,6 @@
 #include "types.h"
+#include "x86.h"
+
 /*
  * PCI software configuration space access mechanism 1
  *
@@ -6,6 +8,8 @@
  */
 #define PCI_CONFIG_ADDR             0xCF8
 #define PCI_CONFIG_DATA             0xCFC
+
+
 
 /*
  * The PCI specification specifies 8 bits for the bus identifier, 5 bits for
@@ -57,6 +61,27 @@ struct pci_device {
  * a configuration transaction
  */
 #define PCI_FORMAT(bus, dev, fn, off) ({0x80000000 | bus << 16 | dev << 11 | fn << 8 | off;})
+
+#define PCI_CONF_READ8(bus, dev, func, reg) \
+	(outl(PCI_CONFIG_ADDR, PCI_FORMAT(bus, dev, func, reg)), \
+	inb(PCI_CONFIG_DATA+((reg)&3)))
+#define PCI_CONF_READ16(bus, dev, func, reg) \
+	(outl(PCI_CONFIG_ADDR, PCI_FORMAT(bus, dev, func, reg)), \
+	inw(PCI_CONFIG_DATA+((reg)&2)))
+#define PCI_CONF_READ32(bus, dev, func, reg) \
+	(outl(PCI_CONFIG_ADDR, PCI_FORMAT(bus, dev, func, reg)), \
+	inl(PCI_CONFIG_DATA))
+
+#define PCI_CONF_WRITE8(bus, dev, func, reg, val) \
+	(outl(PCI_CONFIG_ADDR, PCI_FORMAT(bus, dev, func, reg)), \
+	outb(PCI_CONFIG_DATA+((reg)&3), (val)))
+#define PCI_CONF_WRITE_16(bus, dev, func, reg, val) \
+	(outl(PCI_CONFIG_ADDR, PCI_FORMAT(bus, dev, func, reg)), \
+	outw(PCI_CONFIG_DATA+((reg)&2), (val)))
+#define PCI_CONF_WRITE32(bus, dev, func, reg, val) \
+	(outl(PCI_CONFIG_ADDR, PCI_FORMAT(bus, dev, func, reg)), \
+	outl(PCI_CONFIG_DATA, (val)))
+
 
 /*
  * Class codes of PCI devices at their offsets
