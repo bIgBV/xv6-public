@@ -1,4 +1,5 @@
 #include "pci.h"
+#include "virtio.h"
 #include "x86.h"
 #include "defs.h"
 #include "pcireg.h"
@@ -28,11 +29,19 @@ static void conf_write(struct pci_device *dev, uint32 off, uint32 value) {
  */
 static void log_pci_device(struct pci_device *dev) {
     char *class = PCI_CLASSES[PCI_CLASS(dev->dev_class)];
+    uint32 bus_num = dev->bus->bus_num;
+    uint32 dev_id = dev->dev;
+    uint32 func = dev->func;
+    uint32 vendor_id = PCI_VENDOR_ID(dev->dev_id);
+    uint32 product = PCI_PRODUCT(dev->dev_id);
+    uint32 class_name = PCI_CLASS(dev->dev_class);
+    uint32 sub_class = PCI_SUBCLASS(dev->dev_class);
+    uint32 irq_line = dev->irq_line;
 
-    cprintf("PCI: %x:%x.%d: %x:%x: class: %x.%x (%s) irq: %d\n",
-		dev->bus->bus_num, dev->dev, dev->func,
-		PCI_VENDOR(dev->dev_id), PCI_PRODUCT(dev->dev_id),
-		PCI_CLASS(dev->dev_class), PCI_SUBCLASS(dev->dev_class), class, dev->irq_line);
+    cprintf("PCI: %x:%x.%d: 0x%x:0x%x: class: %x.%x (%s) irq: %d\n",
+		bus_num, dev_id, func,
+		vendor_id, product,
+		class_name, sub_class, class, irq_line);
 }
 
 static int pci_enumerate(struct pci_bus *bus) {
@@ -57,8 +66,8 @@ static int pci_enumerate(struct pci_bus *bus) {
             struct pci_device individual_fn = fn;
             individual_fn.dev_id = conf_read(&fn, PCI_ID_REG);
 
-            // 0xffff is an invalid device ID
-            if (PCI_VENDOR(individual_fn.dev_id) == 0xffff) {
+            // 0xffff is an invalid vendor ID
+            if (PCI_VENDOR_ID(individual_fn.dev_id) == 0xffff) {
                 continue;
             }
 
@@ -68,10 +77,22 @@ static int pci_enumerate(struct pci_bus *bus) {
 
             individual_fn.dev_class = conf_read(&individual_fn, PCI_CLASS_REG);
 
-
-            if (PCI_CLASS(individual_fn.dev_class) == PCI_NETWORK_CONTROLLER) {
-                cprintf("We've got a network device!\n");
+            if (PCI_VENDOR_ID(individual_fn.dev_id) == VIRTIO_VENDOR_ID) {
+                // we have a virtio device
+                if (PCI_DEVICE_ID(individual_fn.dev_id) > VIRTIO_DEVICE_ID_BASE) {
+                    cprintf("We have a virtio v1.0 sepc device.\n");
+                }
+                else {
+                    switch(PCI_DEVICE_ID(individual_fn.dev_id)) {
+                        case (T_NETWORK_CARD):
+                            cprintf("We have a transitional network device.\n");
+                            break;
+                        default:
+                            cprintf("We have some other transitional device.\n");
+                    }
+                }
             }
+
             log_pci_device(&individual_fn);
         }
     }

@@ -223,7 +223,7 @@ ifndef CPUS
 CPUS := 2
 endif
 QEMUOPTS = -hdb fs.img xv6.img -smp $(CPUS) -m 512 $(QEMUEXTRA)
-NETOPTS = -netdev user,id=n1,ipv6=off -device virtio-net,netdev=n1
+NETOPTS = -netdev tap,id=mynet0 -device virtio-net,netdev=mynet0
 
 
 
@@ -236,8 +236,9 @@ qemu-network: fs.img xv6.img
 qemu-memfs: xv6memfs.img
 	$(QEMU) -drive file=xv6memfs.img,index=0,media=disk,format=raw -smp $(CPUS) -m 256
 
+# Add network options as well.
 qemu-nox: fs.img xv6.img
-	$(QEMU) -nographic $(QEMUOPTS)
+	$(QEMU) -nographic $(NETOPTS) $(QEMUOPTS)
 
 .gdbinit: .gdbinit.tmpl
 	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
@@ -248,7 +249,7 @@ qemu-gdb: fs.img xv6.img .gdbinit
 
 qemu-nox-gdb: fs.img xv6.img .gdbinit
 	@echo "*** Now run 'gdb'." 1>&2
-	$(QEMU) -nographic $(QEMUOPTS) -S $(QEMUGDB)
+	$(QEMU) -nographic $(QEMUOPTS) $(NETOPTS) -S $(QEMUGDB)
 
 # CUT HERE
 # prepare dist for students

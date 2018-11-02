@@ -1,12 +1,27 @@
+unsigned int create_mask(int start, int offset) {
+
+    return ((1 << offset) - 1) << start;
+}
+
 /*
  * Device identification register; contains a vendor ID and a device ID.
+ * bits 31-16: Device ID | bits 15-0: Vendor ID
  */
 #define	PCI_ID_REG                  0x00
 
 #define	PCI_VENDOR_SHIFT			0
 #define	PCI_VENDOR_MASK				0xffff
-#define	PCI_VENDOR(id) \
-	    (((id) >> PCI_VENDOR_SHIFT) & PCI_VENDOR_MASK)
+
+// The vendor ID is the last 16 bits of the ID register
+#define PCI_VENDOR_ID(value) \
+    (value & create_mask(0, 16))
+
+// The device ID if the high 16 bits of the ID register
+#define PCI_DEVICE_ID(value) \
+    ((value & create_mask(16, 16)) >> 16)
+
+// #define	PCI_VENDOR(id) \
+// 	    (((id) >> PCI_VENDOR_SHIFT) & PCI_VENDOR_MASK)
 
 #define	PCI_PRODUCT_SHIFT			16
 #define	PCI_PRODUCT_MASK			0xffff
