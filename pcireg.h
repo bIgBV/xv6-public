@@ -39,6 +39,9 @@ unsigned int create_mask(int start, int offset) {
 #define PCI_CAP_REG                 0x34
 // The bottom two bits are reserved and have to be masked off
 #define PCI_CAP_MASK                0xfc
+#define PCI_CAP_TYPE                0X00
+#define PCI_CAP_NEXT                0X01
+#define PCI_CAP_CFG_TYPE            0x03
 #define PCI_CAP_POINTER(reg) \
     (reg & create_mask(0, 8))
 /*
@@ -112,10 +115,13 @@ unsigned int create_mask(int start, int offset) {
  * Command and status register.
  */
 #define	PCI_COMMAND_STATUS_REG			0x04
+#define PCI_STATUS(reg) \
+    ((reg & create_mask(16, 16)) >> 16)
 
 #define	PCI_COMMAND_IO_ENABLE			0x00000001
 #define	PCI_COMMAND_MEM_ENABLE			0x00000002
 #define	PCI_COMMAND_MASTER_ENABLE		0x00000004
+#define PCI_COMMAND_CAPABALITES_LIST    0x00000010
 
 /*
  * Mapping registers

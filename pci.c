@@ -12,6 +12,14 @@ static uint32 conf_read32(struct pci_device *dev, uint32 off) {
     return PCI_CONF_READ32(dev->bus->bus_num, dev->dev, dev->func, off);
 }
 
+uint32 conf_read16(struct pci_device *dev, uint32 off) {
+    return PCI_CONF_READ16(dev->bus->bus_num, dev->dev, dev->func, off);
+}
+
+uint32 conf_read8(struct pci_device *dev, uint32 off) {
+    return PCI_CONF_READ8(dev->bus->bus_num, dev->dev, dev->func, off);
+}
+
 /*
  * Writes the provided value `value` at the register `off` for the device `dev`
  */
@@ -39,17 +47,30 @@ static void log_pci_device(struct pci_device *dev) {
 		class_name, sub_class, class, irq_line);
 }
 
-void config_virtio_net(struct pci_device* device) {
+int config_virtio_net(struct pci_device* device) {
+    uint8 vndr_id, next;
+
+    // uint32 status_register = conf_read32(device, PCI_COMMAND_STATUS_REG);
+    // uint16 status = PCI_STATUS(status);
+    uint16 status = conf_read16(device, PCI_COMMAND_STATUS_REG+2);
+
+    if (!(status & PCI_COMMAND_CAPABALITES_LIST)) {
+        return -1;
+    }
+
     uint32 cap_register = conf_read32(device, PCI_CAP_REG);
     uint8 cap_pointer = PCI_CAP_POINTER(cap_register) & PCI_CAP_MASK;
 
     cprintf("Got a value of: 0x%x\n", cap_pointer);
 
-    // while (cap_pointer) {
-    //     uint8 next = (PCI_CAP_POINTER(conf_read32(device, cap_pointer + 0x01)) & PCI_CAP_MASK);
-    //     cprintf("Next pointer is at: %x\n", next);
-    //     cap_pointer = next;
-    // }
+    while (cap_pointer) {
+        vndr_id = conf_read8(device, cap_pointer + PCI_CAP_TYPE);
+        next = conf_read8(device, cap_pointer + PCI_CAP_NEXT) & PCI_CAP_MASK;
+        uint8 type = conf_read8(device, cap_pointer + PCI_CAP_CFG_TYPE);
+
+        cprintf("Config type: 0x%x Next pointer is at: %x\n", type, next);
+        cap_pointer = next;
+    }
 }
 
 static int pci_enumerate(struct pci_bus *bus) {

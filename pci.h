@@ -52,6 +52,61 @@ struct pci_device {
     uint8 irq_pin;
 };
 
+
+/*
+ * represents a single capability struct in the capabilities linked list
+ */
+typedef struct pci_cap {
+    /* Generic PCI field: PCI_CAP_ID_VNDR */
+    uint8 cap_vndr_id;
+    /* Generic PCI field: next ptr*/
+    uint8 cap_next;
+    /* Generic PCI field: capability length */
+    uint8 cap_len;
+    /* Identifies the structure. */
+/* Common configuration */
+#define VIRTIO_PCI_CAP_COMMON_CFG        1
+/* Notifications */
+#define VIRTIO_PCI_CAP_NOTIFY_CFG        2
+/* ISR Status */
+#define VIRTIO_PCI_CAP_ISR_CFG           3
+/* Device specific configuration */
+#define VIRTIO_PCI_CAP_DEVICE_CFG        4
+/* PCI configuration access */
+#define VIRTIO_PCI_CAP_PCI_CFG           5
+    uint8 cfg_type;
+    /* Where to find it. */
+    uint8 bar;
+    /* Pad to full dword. */
+    uint8 padding[3];
+    /* Offset within bar. */
+    uint32 offset;
+    /* Length of the structure, in bytes. */
+    uint8 length;
+} cap;
+
+struct virtio_pci_common_cfg {
+    /* About the whole device. */
+    uint32 device_feature_select;     /* read-write */
+    uint32 device_feature;            /* read-only for driver */
+    uint32 driver_feature_select;     /* read-write */
+    uint32 driver_feature;            /* read-write */
+    uint16 msix_config;               /* read-write */
+    uint16 num_queues;                /* read-only for driver */
+    uint8 device_status;               /* read-write */
+    uint8 config_generation;           /* read-only for driver */
+
+    /* About a specific virtqueue. */
+    uint16 queue_select;              /* read-write */
+    uint16 queue_size;                /* read-write, power of 2, or 0. */
+    uint16 queue_msix_vector;         /* read-write */
+    uint16 queue_enable;              /* read-write */
+    uint16 queue_notify_off;          /* read-only for driver */
+    uint64 queue_desc;                /* read-write */
+    uint64 queue_avail;               /* read-write */
+    uint64 queue_used;                /* read-write */
+};
+
 /*
  * Macro to create the 32 bit register values for a PCI transaction. `off` here
  * is the register value in the PCI config space of the device specified by
