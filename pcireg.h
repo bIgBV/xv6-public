@@ -42,8 +42,16 @@ unsigned int create_mask(int start, int offset) {
 #define PCI_CAP_TYPE                0X00
 #define PCI_CAP_NEXT                0X01
 #define PCI_CAP_CFG_TYPE            0x03
+#define PCI_CAP_BAR                 0x04
+#define PCI_CAP_OFF                 0x06 // 05 byte is padding
 #define PCI_CAP_POINTER(reg) \
     (reg & create_mask(0, 8))
+
+/*
+ * PCI config space BAR offset
+ */
+#define PCI_CFG_BAR_OFF             0x10
+
 /*
  * PCI BHLC = BIST/Header Type/Latency Timer/Cache Line Size Register.
  */
