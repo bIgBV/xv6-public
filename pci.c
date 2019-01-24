@@ -65,11 +65,13 @@ static void udelay(unsigned int u)
  * http://wiki.osdev.org/PCI
  */
 int read_common_cfg(struct pci_device* device, uint8 bar, uint32 offset) {
-    cprintf("Bar to read: %d\n", bar);
-    uint32 prev_val = conf_read32(device, ( bar * 4 ) + PCI_CFG_BAR_OFF);
-    cprintf("Previous value: %x\n", prev_val);
-    conf_write32(device, bar + PCI_CFG_BAR_OFF, 0xffffffff);
-    uint32 new_val = conf_read32(device, bar + PCI_CFG_BAR_OFF);
+    // The bar passed to the functino is just the offset. Each bar is 4 bytes
+    // long. Multiply by 4 for the right offset.
+    uint8 confbar = bar * 4;
+    uint32 prev = conf_read32(device, confbar + PCI_CFG_BAR_OFF);
+
+    conf_write32(device, confbar + PCI_CFG_BAR_OFF, 0xffffffff);
+    uint32 new_val = conf_read32(device, confbar + PCI_CFG_BAR_OFF);
 
     if (new_val == 0) {
         return -1;
@@ -82,26 +84,33 @@ int read_common_cfg(struct pci_device* device, uint8 bar, uint32 offset) {
             cprintf("64bit BAR\n");
 
         size = PCI_MAPREG_MEM_SIZE(new_val);
-        base = P2V(PCI_MAPREG_MEM_ADDR(prev_val));
+        base = P2V(PCI_MAPREG_MEM_ADDR(prev));
         cprintf("mem region %d: %d bytes at 0x%x\n",
                 bar, size, base);
     } else {
         size = PCI_MAPREG_IO_SIZE(new_val);
-        base = PCI_MAPREG_IO_ADDR(prev_val);
+        base = PCI_MAPREG_IO_ADDR(prev);
         cprintf("io region %d: %d bytes at 0x%x\n",
                 bar, size, base);
     }
 
-    conf_write32(device, (bar * 4) + PCI_CFG_BAR_OFF, prev_val);
+    conf_write32(device, confbar + PCI_CFG_BAR_OFF, prev);
 
     struct virtio_pci_common_cfg* conf = (struct virtio_pci_common_cfg*)base;
 
     uint32 previous_features = conf->device_feature;
-    cprintf("Features: %d\n", previous_features);
+    cprintf("Features: %x\n", previous_features);
     conf->device_feature_select = 0x1;
 
     while(previous_features == conf->device_feature) {}
-    cprintf("New features: %d\n", conf->device_feature);
+    cprintf("New features: %x\n", conf->device_feature);
+
+    previous_features = conf->device_feature;
+
+    conf->device_feature_select = 0x0;
+
+    while(previous_features == conf->device_feature) {}
+    cprintf("New features: %x\n", conf->device_feature);
 
     return 0;
 }
