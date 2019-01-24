@@ -88,3 +88,19 @@ struct virtio_pci_common_cfg {
     uint64 queue_avail;               /* read-write */
     uint64 queue_used;                /* read-write */
 };
+
+
+/*
+ * A Virtio device.
+ */
+struct virtio_device {
+    struct virtio_pci_common_cfg* conf;
+    // memory mapped IO base
+    uint64 base;
+    // size of memory mapped region
+    uint32 size;
+};
+
+#define NVIRTIO                         10
+
+struct virtio_device* virtdevs[NVIRTIO] = {{0}};

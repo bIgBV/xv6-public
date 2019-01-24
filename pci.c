@@ -55,6 +55,23 @@ static void udelay(unsigned int u)
 		inb(0x84);
 }
 
+int alloc_device(uint64 base, uint32 size) {
+    int fd;
+    struct virtio_device *dev = (struct virtio_dev*)kalloc();
+    dev->base = base;
+    dev->size = size;
+    dev->conf = (struct virtio_pci_common_cfg*)base;
+
+    for(fd = 0; fd < NVIRTIO; dev++) {
+        if (virtdevs[fd] == 0) {
+            virtdevs[fd] = dev;
+            return fd;
+        }
+    }
+
+    return -1;
+}
+
 /*
  * To determine the amount of address space needed by a PCI device,
  * you must save the original value of the BAR, write a value of all 1's
@@ -96,23 +113,7 @@ int read_common_cfg(struct pci_device* device, uint8 bar, uint32 offset) {
 
     conf_write32(device, confbar + PCI_CFG_BAR_OFF, prev);
 
-    struct virtio_pci_common_cfg* conf = (struct virtio_pci_common_cfg*)base;
-
-    uint32 previous_features = conf->device_feature;
-    cprintf("Features: %x\n", previous_features);
-    conf->device_feature_select = 0x1;
-
-    while(previous_features == conf->device_feature) {}
-    cprintf("New features: %x\n", conf->device_feature);
-
-    previous_features = conf->device_feature;
-
-    conf->device_feature_select = 0x0;
-
-    while(previous_features == conf->device_feature) {}
-    cprintf("New features: %x\n", conf->device_feature);
-
-    return 0;
+    return alloc_device(base, size);
 }
 
 int config_virtio_net(struct pci_device* device) {
@@ -145,9 +146,11 @@ int config_virtio_net(struct pci_device* device) {
         uint32 offset = conf_read32(device, cap_pointer + PCI_CAP_OFF);
         uint32 len = conf_read32(device, cap_pointer + PCI_CAP_OFF+4);
 
+        int dev;
         if (type == VIRTIO_PCI_CAP_COMMON_CFG) {
-            if (read_common_cfg(device, bar, offset) != 0)
+            if (dev = read_common_cfg(device, bar, offset) != 0)
                 return -1;
+            cprintf("We have a virtio device: %x\n", virtdevs[dev]->conf->device_feature);
         }
         cap_pointer = next;
     }
