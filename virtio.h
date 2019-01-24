@@ -66,3 +66,25 @@ struct virtio_pci_cap {
 #define VIRTIO_PCI_CAP_DEVICE_CFG        4
 /* PCI configuration access */
 #define VIRTIO_PCI_CAP_PCI_CFG           5
+
+struct virtio_pci_common_cfg {
+    /* About the whole device. */
+    uint32 device_feature_select;     /* read-write */
+    uint32 device_feature;            /* read-only for driver */
+    uint32 driver_feature_select;     /* read-write */
+    uint32 driver_feature;            /* read-write */
+    uint16 msix_config;               /* read-write */
+    uint16 num_queues;                /* read-only for driver */
+    uint8 device_status;               /* read-write */
+    uint8 config_generation;           /* read-only for driver */
+
+    /* About a specific virtqueue. */
+    uint16 queue_select;              /* read-write */
+    uint16 queue_size;                /* read-write, power of 2, or 0. */
+    uint16 queue_msix_vector;         /* read-write */
+    uint16 queue_enable;              /* read-write */
+    uint16 queue_notify_off;          /* read-only for driver */
+    uint64 queue_desc;                /* read-write */
+    uint64 queue_avail;               /* read-write */
+    uint64 queue_used;                /* read-write */
+};

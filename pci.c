@@ -2,6 +2,7 @@
 #include "virtio.h"
 #include "defs.h"
 #include "pcireg.h"
+#include "memlayout.h"
 
 
 /*
@@ -47,13 +48,79 @@ static void log_pci_device(struct pci_device *dev) {
 		class_name, sub_class, class, irq_line);
 }
 
+static void udelay(unsigned int u)
+{
+	unsigned int i;
+	for (i = 0; i < u; i++)
+		inb(0x84);
+}
+
+/*
+ * To determine the amount of address space needed by a PCI device,
+ * you must save the original value of the BAR, write a value of all 1's
+ * to the register, then read it back. The amount of memory can then be
+ * determined by masking the information bits, performing a
+ * bitwise NOT ('~' in C), and incrementing the value by 1.
+ *
+ * http://wiki.osdev.org/PCI
+ */
+int read_common_cfg(struct pci_device* device, uint8 bar, uint32 offset) {
+    cprintf("Bar to read: %d\n", bar);
+    uint32 prev_val = conf_read32(device, ( bar * 4 ) + PCI_CFG_BAR_OFF);
+    cprintf("Previous value: %x\n", prev_val);
+    conf_write32(device, bar + PCI_CFG_BAR_OFF, 0xffffffff);
+    uint32 new_val = conf_read32(device, bar + PCI_CFG_BAR_OFF);
+
+    if (new_val == 0) {
+        return -1;
+    }
+
+    uint32 size;
+    uint64 base;
+    if (PCI_MAPREG_TYPE(new_val) == PCI_MAPREG_TYPE_MEM) {
+        if (PCI_MAPREG_MEM_TYPE(new_val) == PCI_MAPREG_MEM_TYPE_64BIT)
+            cprintf("64bit BAR\n");
+
+        size = PCI_MAPREG_MEM_SIZE(new_val);
+        base = P2V(PCI_MAPREG_MEM_ADDR(prev_val));
+        cprintf("mem region %d: %d bytes at 0x%x\n",
+                bar, size, base);
+    } else {
+        size = PCI_MAPREG_IO_SIZE(new_val);
+        base = PCI_MAPREG_IO_ADDR(prev_val);
+        cprintf("io region %d: %d bytes at 0x%x\n",
+                bar, size, base);
+    }
+
+    conf_write32(device, (bar * 4) + PCI_CFG_BAR_OFF, prev_val);
+
+    struct virtio_pci_common_cfg* conf = (struct virtio_pci_common_cfg*)base;
+
+    uint32 previous_features = conf->device_feature;
+    cprintf("Features: %d\n", previous_features);
+    conf->device_feature_select = 0x1;
+
+    while(previous_features == conf->device_feature) {}
+    cprintf("New features: %d\n", conf->device_feature);
+
+    return 0;
+}
+
 int config_virtio_net(struct pci_device* device) {
     uint8 vndr_id, next;
+
+    // Enable memory and IO addressing
+    conf_write32(
+            device, PCI_COMMAND_STATUS_REG,
+            PCI_COMMAND_IO_ENABLE
+            | PCI_COMMAND_MEM_ENABLE
+            | PCI_COMMAND_MASTER_ENABLE);
 
     // uint32 status_register = conf_read32(device, PCI_COMMAND_STATUS_REG);
     // uint16 status = PCI_STATUS(status);
     uint16 status = conf_read16(device, PCI_COMMAND_STATUS_REG+2);
 
+    // Check if the device has a capabalities list
     if (!(status & PCI_COMMAND_CAPABALITES_LIST)) {
         return -1;
     }
@@ -69,47 +136,12 @@ int config_virtio_net(struct pci_device* device) {
         uint32 offset = conf_read32(device, cap_pointer + PCI_CAP_OFF);
         uint32 len = conf_read32(device, cap_pointer + PCI_CAP_OFF+4);
 
-        if (type == VIRTIO_PCI_CAP_COMMON_CFG)
-            read_common_cfg(device, bar, offset);
+        if (type == VIRTIO_PCI_CAP_COMMON_CFG) {
+            if (read_common_cfg(device, bar, offset) != 0)
+                return -1;
+        }
         cap_pointer = next;
     }
-}
-
-/*
- * To determine the amount of address space needed by a PCI device,
- * you must save the original value of the BAR, write a value of all 1's
- * to the register, then read it back. The amount of memory can then be
- * determined by masking the information bits, performing a
- * bitwise NOT ('~' in C), and incrementing the value by 1.
- *
- * http://wiki.osdev.org/PCI
- */
-void read_common_cfg(struct pci_device* device, uint8 bar, uint32 offset) {
-    uint32 prev_val = conf_read32(device, bar + PCI_CFG_BAR_OFF);
-    conf_write32(device, bar + PCI_CFG_BAR_OFF, 0xffffffff);
-    uint32 new_val = conf_read32(device, bar + PCI_CFG_BAR_OFF);
-
-    if (new_val == 0) {
-        return -1;
-    }
-
-    uint32 base, size;
-    if (PCI_MAPREG_TYPE(new_val) == PCI_MAPREG_TYPE_MEM) {
-        if (PCI_MAPREG_MEM_TYPE(new_val) == PCI_MAPREG_MEM_TYPE_64BIT)
-            cprintf("64bit BAR\n");
-
-        size = PCI_MAPREG_MEM_SIZE(new_val);
-        base = PCI_MAPREG_MEM_ADDR(prev_val);
-        cprintf("mem region %d: %d bytes at 0x%x\n",
-                bar, size, base);
-    } else {
-        size = PCI_MAPREG_IO_SIZE(new_val);
-        base = PCI_MAPREG_IO_ADDR(prev_val);
-        cprintf("io region %d: %d bytes at 0x%x\n",
-                bar, size, base);
-    }
-
-    conf_write32(device, bar, prev_val);
 }
 
 static int pci_enumerate(struct pci_bus *bus) {
