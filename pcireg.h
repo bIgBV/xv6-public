@@ -20,9 +20,6 @@ unsigned int create_mask(int start, int offset) {
 #define PCI_DEVICE_ID(value) \
     ((value & create_mask(16, 16)) >> 16)
 
-// #define	PCI_VENDOR(id) \
-// 	    (((id) >> PCI_VENDOR_SHIFT) & PCI_VENDOR_MASK)
-
 #define	PCI_PRODUCT_SHIFT			16
 #define	PCI_PRODUCT_MASK			0xffff
 #define	PCI_PRODUCT(id) \

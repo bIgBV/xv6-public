@@ -189,5 +189,8 @@ void            clearpteu(pde_t *pgdir, char *uva);
 // pci.c
 int             pciinit(void);
 
+// virtio.h
+int             alloc_virt_dev(uint64, uint32);
+
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

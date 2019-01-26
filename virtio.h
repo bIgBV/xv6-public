@@ -33,9 +33,9 @@ enum TRANSITIONAL_VIRTIO_DEVICE {
 };
 
 // The PCI device ID of is VIRTIO_DEVICE_ID_BASE + virtio_device
-const int VIRTIO_DEVICE_ID_BASE = 0x1040;
+#define VIRTIO_DEVICE_ID_BASE 0x1040
 // A virtio device will always have this vendor id
-const int VIRTIO_VENDOR_ID = 0x1AF4;
+#define VIRTIO_VENDOR_ID  0x1AF4
 
 struct virtio_pci_cap {
     // Generic PCI field: PCI_CAP_ID_VNDR
@@ -103,4 +103,13 @@ struct virtio_device {
 
 #define NVIRTIO                         10
 
-struct virtio_device* virtdevs[NVIRTIO] = {{0}};
+// Array of virtio devices
+extern struct virtio_device* virtdevs[NVIRTIO];
+
+#define VIRTIO_ACKNOWLEDGE              1
+#define VIRTIO_DRIVER                   2
+#define VIRTIO_FAILED                   128
+#define VIRTIO_FEATURES_OK              8
+#define VIRTIO_DRIVER_OK                4
+#define VIRTIO_DEVICE_NEEDS_RESET       64
+

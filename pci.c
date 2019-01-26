@@ -1,6 +1,6 @@
 #include "pci.h"
-#include "virtio.h"
 #include "defs.h"
+#include "virtio.h"
 #include "pcireg.h"
 #include "memlayout.h"
 
@@ -48,29 +48,6 @@ static void log_pci_device(struct pci_device *dev) {
 		class_name, sub_class, class, irq_line);
 }
 
-static void udelay(unsigned int u)
-{
-	unsigned int i;
-	for (i = 0; i < u; i++)
-		inb(0x84);
-}
-
-int alloc_device(uint64 base, uint32 size) {
-    int fd;
-    struct virtio_device *dev = (struct virtio_dev*)kalloc();
-    dev->base = base;
-    dev->size = size;
-    dev->conf = (struct virtio_pci_common_cfg*)base;
-
-    for(fd = 0; fd < NVIRTIO; dev++) {
-        if (virtdevs[fd] == 0) {
-            virtdevs[fd] = dev;
-            return fd;
-        }
-    }
-
-    return -1;
-}
 
 /*
  * To determine the amount of address space needed by a PCI device,
@@ -101,7 +78,7 @@ int read_common_cfg(struct pci_device* device, uint8 bar, uint32 offset) {
             cprintf("64bit BAR\n");
 
         size = PCI_MAPREG_MEM_SIZE(new_val);
-        base = P2V(PCI_MAPREG_MEM_ADDR(prev));
+        base = (uint64)P2V(PCI_MAPREG_MEM_ADDR(prev));
         cprintf("mem region %d: %d bytes at 0x%x\n",
                 bar, size, base);
     } else {
@@ -113,11 +90,11 @@ int read_common_cfg(struct pci_device* device, uint8 bar, uint32 offset) {
 
     conf_write32(device, confbar + PCI_CFG_BAR_OFF, prev);
 
-    return alloc_device(base, size);
+    return alloc_virt_dev(base, size);
 }
 
 int config_virtio_net(struct pci_device* device) {
-    uint8 vndr_id, next;
+    uint8 next;
 
     // Enable memory and IO addressing
     conf_write32(
@@ -139,21 +116,21 @@ int config_virtio_net(struct pci_device* device) {
     uint8 cap_pointer = PCI_CAP_POINTER(cap_register) & PCI_CAP_MASK;
 
     while (cap_pointer) {
-        vndr_id = conf_read8(device, cap_pointer + PCI_CAP_TYPE);
         next = conf_read8(device, cap_pointer + PCI_CAP_NEXT) & PCI_CAP_MASK;
         uint8 type = conf_read8(device, cap_pointer + PCI_CAP_CFG_TYPE);
         uint8 bar = conf_read8(device, cap_pointer + PCI_CAP_BAR);
         uint32 offset = conf_read32(device, cap_pointer + PCI_CAP_OFF);
-        uint32 len = conf_read32(device, cap_pointer + PCI_CAP_OFF+4);
 
         int dev;
         if (type == VIRTIO_PCI_CAP_COMMON_CFG) {
-            if (dev = read_common_cfg(device, bar, offset) != 0)
+            if ((dev = read_common_cfg(device, bar, offset)) != 0)
                 return -1;
             cprintf("We have a virtio device: %x\n", virtdevs[dev]->conf->device_feature);
         }
         cap_pointer = next;
     }
+
+    return 0;
 }
 
 static int pci_enumerate(struct pci_bus *bus) {
