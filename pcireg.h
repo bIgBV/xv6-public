@@ -48,6 +48,7 @@ unsigned int create_mask(int start, int offset) {
  * PCI config space BAR offset
  */
 #define PCI_CFG_BAR_OFF             0x10
+#define	PCI_CFG_BAR_END             0x28
 
 /*
  * PCI BHLC = BIST/Header Type/Latency Timer/Cache Line Size Register.

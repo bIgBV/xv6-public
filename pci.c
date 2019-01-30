@@ -85,36 +85,49 @@ static void log_pci_device(struct pci_device *dev) {
  * http://wiki.osdev.org/PCI
  */
 int read_dev_bars(struct pci_device* dev) {
-    for(int i = 0; i < 6; i++) {
-        uint8 confbar = i * 4;
-        uint32 prev = conf_read32(dev, confbar + PCI_CFG_BAR_OFF);
+    uint8 width = 4;
+    for(int i = PCI_CFG_BAR_OFF; i < PCI_CFG_BAR_END; i += width) {
+        width = 4;
+        uint32 prev = conf_read32(dev, i);
 
-        conf_write32(dev, confbar + PCI_CFG_BAR_OFF, 0xffffffff);
-        uint32 new_val = conf_read32(dev, confbar + PCI_CFG_BAR_OFF);
+        conf_write32(dev, i, 0xffffffff);
+        uint32 new_val = conf_read32(dev, i);
 
         if (new_val == 0) {
-            return -1;
+            continue;
         }
+
+        uint32 reg = PCI_MAPREG_NUM(i);
 
         uint32 size;
         uint64 base;
         if (PCI_MAPREG_TYPE(new_val) == PCI_MAPREG_TYPE_MEM) {
-            if (PCI_MAPREG_MEM_TYPE(new_val) == PCI_MAPREG_MEM_TYPE_64BIT)
+            if (PCI_MAPREG_MEM_TYPE(new_val) == PCI_MAPREG_MEM_TYPE_64BIT) {
+                width = 8;
                 cprintf("64bit BAR\n");
+            }
 
             size = PCI_MAPREG_MEM_SIZE(new_val);
             base = (uint64)P2V(PCI_MAPREG_MEM_ADDR(prev));
             cprintf("mem region %d: %d bytes at 0x%x\n",
-                    i, size, base);
+                    reg, size, base);
         } else {
             size = PCI_MAPREG_IO_SIZE(new_val);
             base = PCI_MAPREG_IO_ADDR(prev);
             cprintf("io region %d: %d bytes at 0x%x\n",
-                    i, size, base);
+                    reg, size, base);
         }
 
-        dev->bar_base[i] = base;
-        dev->bar_size[i] = size;
+        dev->bar_base[reg] = base;
+        dev->bar_size[reg] = size;
+
+        if (size && !base)
+			cprintf("PCI device %x:%x.%d (%x:%x) "
+				"may be misconfigured: "
+				"region %d: base 0x%x, size %d\n",
+				dev->bus->bus_num, dev->dev, dev->func,
+				PCI_VENDOR_ID(dev->dev_id), PCI_PRODUCT(dev->dev_id),
+				reg, base, size);
     }
 
 }
