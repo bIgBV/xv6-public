@@ -46,8 +46,8 @@ struct pci_device {
     uint32 dev_id;
     uint32 dev_class;
 
-    uint8 reg_base[6];
-    uint8 reg_size[6];
+    uint64 bar_base[6];
+    uint32 bar_size[6];
     uint8 irq_line;
     uint8 irq_pin;
 };
@@ -86,23 +86,4 @@ struct pci_device {
 /*
  * Class codes of PCI devices at their offsets
  */
-const char* PCI_CLASSES[] = {
-    "Unclassified",
-    "Mass storage controller",
-    "Network controller",
-    "Display controller",
-    "Multimedia controller",
-    "Memory controller",
-    "Bridge device",
-    "Simple communication controller",
-    "Base system peripheral",
-    "Input device controller",
-    "Docking station",
-    "Processor",
-    "Serial bus controller",
-    "Wireless controller",
-    "Intelligent controller",
-    "Satellite communication controller",
-    "Encryption controller",
-    "Signal processing controller"
-};
+extern const char* PCI_CLASSES[17];

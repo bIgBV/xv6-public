@@ -99,6 +99,7 @@ struct virtio_device {
     uint64 base;
     // size of memory mapped region
     uint32 size;
+    uint8 irq;
 };
 
 #define NVIRTIO                         10

@@ -6,6 +6,30 @@
 
 
 /*
+ * Class codes of PCI devices at their offsets
+ */
+const char* PCI_CLASSES[] = {
+    "Unclassified",
+    "Mass storage controller",
+    "Network controller",
+    "Display controller",
+    "Multimedia controller",
+    "Memory controller",
+    "Bridge device",
+    "Simple communication controller",
+    "Base system peripheral",
+    "Input device controller",
+    "Docking station",
+    "Processor",
+    "Serial bus controller",
+    "Wireless controller",
+    "Intelligent controller",
+    "Satellite communication controller",
+    "Encryption controller",
+    "Signal processing controller"
+};
+
+/*
  * Reads the register at offset `off` in the PCI config space of the device
  * `dev`
  */
@@ -48,8 +72,10 @@ static void log_pci_device(struct pci_device *dev) {
 		class_name, sub_class, class, irq_line);
 }
 
-
 /*
+ * Iterate over the PCI device's Base Address Registers and store their
+ * infomation on the deice indexed by the BAR index
+ *
  * To determine the amount of address space needed by a PCI device,
  * you must save the original value of the BAR, write a value of all 1's
  * to the register, then read it back. The amount of memory can then be
@@ -58,40 +84,42 @@ static void log_pci_device(struct pci_device *dev) {
  *
  * http://wiki.osdev.org/PCI
  */
-int read_common_cfg(struct pci_device* device, uint8 bar, uint32 offset) {
-    // The bar passed to the functino is just the offset. Each bar is 4 bytes
-    // long. Multiply by 4 for the right offset.
-    uint8 confbar = bar * 4;
-    uint32 prev = conf_read32(device, confbar + PCI_CFG_BAR_OFF);
+int read_dev_bars(struct pci_device* dev) {
+    for(int i = 0; i < 6; i++) {
+        uint8 confbar = i * 4;
+        uint32 prev = conf_read32(dev, confbar + PCI_CFG_BAR_OFF);
 
-    conf_write32(device, confbar + PCI_CFG_BAR_OFF, 0xffffffff);
-    uint32 new_val = conf_read32(device, confbar + PCI_CFG_BAR_OFF);
+        conf_write32(dev, confbar + PCI_CFG_BAR_OFF, 0xffffffff);
+        uint32 new_val = conf_read32(dev, confbar + PCI_CFG_BAR_OFF);
 
-    if (new_val == 0) {
-        return -1;
+        if (new_val == 0) {
+            return -1;
+        }
+
+        uint32 size;
+        uint64 base;
+        if (PCI_MAPREG_TYPE(new_val) == PCI_MAPREG_TYPE_MEM) {
+            if (PCI_MAPREG_MEM_TYPE(new_val) == PCI_MAPREG_MEM_TYPE_64BIT)
+                cprintf("64bit BAR\n");
+
+            size = PCI_MAPREG_MEM_SIZE(new_val);
+            base = (uint64)P2V(PCI_MAPREG_MEM_ADDR(prev));
+            cprintf("mem region %d: %d bytes at 0x%x\n",
+                    i, size, base);
+        } else {
+            size = PCI_MAPREG_IO_SIZE(new_val);
+            base = PCI_MAPREG_IO_ADDR(prev);
+            cprintf("io region %d: %d bytes at 0x%x\n",
+                    i, size, base);
+        }
+
+        dev->bar_base[i] = base;
+        dev->bar_size[i] = size;
     }
 
-    uint32 size;
-    uint64 base;
-    if (PCI_MAPREG_TYPE(new_val) == PCI_MAPREG_TYPE_MEM) {
-        if (PCI_MAPREG_MEM_TYPE(new_val) == PCI_MAPREG_MEM_TYPE_64BIT)
-            cprintf("64bit BAR\n");
-
-        size = PCI_MAPREG_MEM_SIZE(new_val);
-        base = (uint64)P2V(PCI_MAPREG_MEM_ADDR(prev));
-        cprintf("mem region %d: %d bytes at 0x%x\n",
-                bar, size, base);
-    } else {
-        size = PCI_MAPREG_IO_SIZE(new_val);
-        base = PCI_MAPREG_IO_ADDR(prev);
-        cprintf("io region %d: %d bytes at 0x%x\n",
-                bar, size, base);
-    }
-
-    conf_write32(device, confbar + PCI_CFG_BAR_OFF, prev);
-
-    return alloc_virt_dev(base, size);
 }
+
+
 
 int config_virtio_net(struct pci_device* device) {
     uint8 next;
@@ -123,7 +151,7 @@ int config_virtio_net(struct pci_device* device) {
 
         int dev;
         if (type == VIRTIO_PCI_CAP_COMMON_CFG) {
-            if ((dev = read_common_cfg(device, bar, offset)) != 0)
+            if ((dev = alloc_virt_dev(device, bar, offset)) != 0)
                 return -1;
             cprintf("We have a virtio device: %x\n", virtdevs[dev]->conf->device_feature);
         }
@@ -165,6 +193,9 @@ static int pci_enumerate(struct pci_bus *bus) {
             individual_fn.irq_pin = PCI_INTERRUPT_PIN(intr);
 
             individual_fn.dev_class = conf_read32(&individual_fn, PCI_CLASS_REG);
+
+            // populate BAR information.
+            read_dev_bars(&individual_fn);
 
             if (PCI_VENDOR_ID(individual_fn.dev_id) == VIRTIO_VENDOR_ID) {
                 // we have a virtio device

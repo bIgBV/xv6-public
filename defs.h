@@ -9,6 +9,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct pci_device;
 
 //entry.S
 void wrmsr(uint msr, uint64 val);
@@ -190,7 +191,7 @@ void            clearpteu(pde_t *pgdir, char *uva);
 int             pciinit(void);
 
 // virtio.h
-int             alloc_virt_dev(uint64, uint32);
+int             alloc_virt_dev(struct pci_device*, uint64, uint32);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
