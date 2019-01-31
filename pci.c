@@ -4,7 +4,6 @@
 #include "pcireg.h"
 #include "memlayout.h"
 
-
 /*
  * Class codes of PCI devices at their offsets
  */
@@ -33,15 +32,15 @@ const char* PCI_CLASSES[] = {
  * Reads the register at offset `off` in the PCI config space of the device
  * `dev`
  */
-static uint32 conf_read32(struct pci_device *dev, uint32 off) {
+uint32 confread32(struct pci_device *dev, uint32 off) {
     return PCI_CONF_READ32(dev->bus->bus_num, dev->dev, dev->func, off);
 }
 
-uint32 conf_read16(struct pci_device *dev, uint32 off) {
+uint32 confread16(struct pci_device *dev, uint32 off) {
     return PCI_CONF_READ16(dev->bus->bus_num, dev->dev, dev->func, off);
 }
 
-uint32 conf_read8(struct pci_device *dev, uint32 off) {
+uint32 confread8(struct pci_device *dev, uint32 off) {
     return PCI_CONF_READ8(dev->bus->bus_num, dev->dev, dev->func, off);
 }
 
@@ -85,13 +84,14 @@ static void log_pci_device(struct pci_device *dev) {
  * http://wiki.osdev.org/PCI
  */
 int read_dev_bars(struct pci_device* dev) {
-    uint8 width = 4;
+    uint8 width;
+
     for(int i = PCI_CFG_BAR_OFF; i < PCI_CFG_BAR_END; i += width) {
         width = 4;
-        uint32 prev = conf_read32(dev, i);
+        uint32 prev = confread32(dev, i);
 
         conf_write32(dev, i, 0xffffffff);
-        uint32 new_val = conf_read32(dev, i);
+        uint32 new_val = confread32(dev, i);
 
         if (new_val == 0) {
             continue;
@@ -144,23 +144,23 @@ int config_virtio_net(struct pci_device* device) {
             | PCI_COMMAND_MEM_ENABLE
             | PCI_COMMAND_MASTER_ENABLE);
 
-    // uint32 status_register = conf_read32(device, PCI_COMMAND_STATUS_REG);
+    // uint32 status_register = confread32(device, PCI_COMMAND_STATUS_REG);
     // uint16 status = PCI_STATUS(status);
-    uint16 status = conf_read16(device, PCI_COMMAND_STATUS_REG+2);
+    uint16 status = confread16(device, PCI_COMMAND_STATUS_REG+2);
 
     // Check if the device has a capabalities list
     if (!(status & PCI_COMMAND_CAPABALITES_LIST)) {
         return -1;
     }
 
-    uint32 cap_register = conf_read32(device, PCI_CAP_REG);
+    uint32 cap_register = confread32(device, PCI_CAP_REG);
     uint8 cap_pointer = PCI_CAP_POINTER(cap_register) & PCI_CAP_MASK;
 
     while (cap_pointer) {
-        next = conf_read8(device, cap_pointer + PCI_CAP_NEXT) & PCI_CAP_MASK;
-        uint8 type = conf_read8(device, cap_pointer + PCI_CAP_CFG_TYPE);
-        uint8 bar = conf_read8(device, cap_pointer + PCI_CAP_BAR);
-        uint32 offset = conf_read32(device, cap_pointer + PCI_CAP_OFF);
+        next = confread8(device, cap_pointer + PCI_CAP_NEXT) & PCI_CAP_MASK;
+        uint8 type = confread8(device, cap_pointer + PCI_CAP_CFG_TYPE);
+        uint8 bar = confread8(device, cap_pointer + PCI_CAP_BAR);
+        uint32 offset = confread32(device, cap_pointer + PCI_CAP_OFF);
 
         int dev;
         if (type == VIRTIO_PCI_CAP_COMMON_CFG) {
@@ -181,7 +181,7 @@ static int pci_enumerate(struct pci_bus *bus) {
     dev_fn.bus = bus;
 
     for (dev_fn.dev = 0; dev_fn.dev < PCI_MAX_DEVICES; dev_fn.dev++) {
-        uint32 bhcl = conf_read32(&dev_fn, PCI_BHLC_REG);
+        uint32 bhcl = confread32(&dev_fn, PCI_BHLC_REG);
 
         if (PCI_HDRTYPE_TYPE(bhcl) > 1) {
             continue;
@@ -194,18 +194,18 @@ static int pci_enumerate(struct pci_bus *bus) {
         // Configure the device functions
         for (fn.func = 0; fn.func < (PCI_HDRTYPE_MULTIFN(bhcl) ? 8 : 1); fn.func++) {
             struct pci_device individual_fn = fn;
-            individual_fn.dev_id = conf_read32(&fn, PCI_ID_REG);
+            individual_fn.dev_id = confread32(&fn, PCI_ID_REG);
 
             // 0xffff is an invalid vendor ID
             if (PCI_VENDOR_ID(individual_fn.dev_id) == 0xffff) {
                 continue;
             }
 
-            uint32 intr = conf_read32(&individual_fn, PCI_INTERRUPT_REG);
+            uint32 intr = confread32(&individual_fn, PCI_INTERRUPT_REG);
             individual_fn.irq_line = PCI_INTERRUPT_LINE(intr);
             individual_fn.irq_pin = PCI_INTERRUPT_PIN(intr);
 
-            individual_fn.dev_class = conf_read32(&individual_fn, PCI_CLASS_REG);
+            individual_fn.dev_class = confread32(&individual_fn, PCI_CLASS_REG);
 
             // populate BAR information.
             read_dev_bars(&individual_fn);
