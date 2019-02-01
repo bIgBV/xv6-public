@@ -1,5 +1,9 @@
 #include "types.h"
 
+#define DISABLE_FEATURE(v,feature) v &= ~(1<<feature)
+#define ENABLE_FEATURE(v,feature) v |= (1<<feature)
+#define HAS_FEATURE(v,feature) (v & (1<<feature))
+
 // Virtio device IDs
 enum VIRTIO_DEVICE {
     RESERVED = 0,
@@ -114,3 +118,24 @@ extern struct virtio_device* virtdevs[NVIRTIO];
 #define VIRTIO_DRIVER_OK                4
 #define VIRTIO_DEVICE_NEEDS_RESET       64
 
+#define VIRTIO_NET_CSUM (0)
+#define VIRTIO_NET_GUEST_CSUM (1)
+#define VIRTIO_NET_CTRL_GUEST_OFFLOADS (2)
+#define VIRTIO_NET_MAC (5)
+#define VIRTIO_NET_GUEST_TSO4 (7)
+#define VIRTIO_NET_GUEST_TSO6 (8)
+#define VIRTIO_NET_GUEST_ECN (9)
+#define VIRTIO_NET_GUEST_UFO (10)
+#define VIRTIO_NET_HOST_TSO4 (11)
+#define VIRTIO_NET_HOST_TSO6 (12)
+#define VIRTIO_NET_HOST_ECN (13)
+#define VIRTIO_NET_HOST_UFO (14)
+#define VIRTIO_NET_MRG_RXBUF (15)
+#define VIRTIO_NET_STATUS (16)
+#define VIRTIO_NET_CTRL_VQ (17)
+#define VIRTIO_NET_CTRL_RX (18)
+#define VIRTIO_NET_CTRL_VLAN (19)
+#define VIRTIO_NET_GUEST_ANNOUNCE (21)
+#define VIRTIO_NET_MQ (22)
+#define VIRTIO_NET_CTRL_MAC_ADDR (23)
+#define VIRTIO_EVENT_IDX (29)
