@@ -224,7 +224,8 @@ ifndef CPUS
 CPUS := 2
 endif
 QEMUOPTS = -hdb fs.img xv6.img -smp $(CPUS) -m 512 $(QEMUEXTRA)
-NETOPTS = -netdev tap,id=mynet0 -device virtio-net,netdev=mynet0
+NETOPTS = -net nic,model=virtio,macaddr=52:54:00:12:34:60 -net tap,ifname=tap100,script=no
+# NETOPTS = -netdev tap,id=mynet0 -device virtio-net,netdev=mynet0
 
 
 

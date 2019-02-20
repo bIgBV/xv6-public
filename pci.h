@@ -50,6 +50,8 @@ struct pci_device {
     uint32 bar_size[6];
     uint8 irq_line;
     uint8 irq_pin;
+    uint64 memaddr;
+    uint32 iobase;
 };
 
 /*

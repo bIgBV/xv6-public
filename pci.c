@@ -106,15 +106,17 @@ int read_dev_bars(struct pci_device* dev) {
                 width = 8;
                 cprintf("64bit BAR\n");
             }
+            cprintf("Mem region addr: %p\n", prev);
 
             size = PCI_MAPREG_MEM_SIZE(new_val);
             base = (uint64)P2V(PCI_MAPREG_MEM_ADDR(prev));
-            cprintf("mem region %d: %d bytes at 0x%x\n",
+            cprintf("mem region %d: %d bytes at 0x%p\n",
                     reg, size, base);
         } else {
             size = PCI_MAPREG_IO_SIZE(new_val);
-            base = PCI_MAPREG_IO_ADDR(prev);
-            cprintf("io region %d: %d bytes at 0x%x\n",
+            base = prev;
+            dev->iobase = base;
+            cprintf("io region %d: %d bytes at 0x%p\n",
                     reg, size, base);
         }
 
@@ -128,7 +130,9 @@ int read_dev_bars(struct pci_device* dev) {
 				dev->bus->bus_num, dev->dev, dev->func,
 				PCI_VENDOR_ID(dev->dev_id), PCI_PRODUCT(dev->dev_id),
 				reg, base, size);
+        cprintf("Current iobase: %x\n", dev->iobase);
     }
+
 
 }
 
