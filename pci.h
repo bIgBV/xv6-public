@@ -48,9 +48,11 @@ struct pci_device {
 
     uint64 bar_base[6];
     uint32 bar_size[6];
+    uint64 capabalities[6]; // Virtio spec v1.0 only defines 5 types of capabilites.
+
     uint8 irq_line;
     uint8 irq_pin;
-    uint64 memaddr;
+    uint64 membase;
     uint32 iobase;
 };
 
@@ -77,7 +79,7 @@ struct pci_device {
 #define PCI_CONF_WRITE8(bus, dev, func, reg, val) \
 	(outl(PCI_CONFIG_ADDR, PCI_FORMAT(bus, dev, func, reg)), \
 	outb(PCI_CONFIG_DATA+((reg)&3), (val)))
-#define PCI_CONF_WRITE_16(bus, dev, func, reg, val) \
+#define PCI_CONF_WRITE16(bus, dev, func, reg, val) \
 	(outl(PCI_CONFIG_ADDR, PCI_FORMAT(bus, dev, func, reg)), \
 	outw(PCI_CONFIG_DATA+((reg)&2), (val)))
 #define PCI_CONF_WRITE32(bus, dev, func, reg, val) \
@@ -88,4 +90,4 @@ struct pci_device {
 /*
  * Class codes of PCI devices at their offsets
  */
-extern const char* PCI_CLASSES[17];
+extern char* PCI_CLASSES[18];

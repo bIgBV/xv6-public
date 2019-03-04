@@ -42,21 +42,21 @@ enum TRANSITIONAL_VIRTIO_DEVICE {
 #define VIRTIO_VENDOR_ID  0x1AF4
 
 struct virtio_pci_cap {
-    // Generic PCI field: PCI_CAP_ID_VNDR
+    // Generic PCI field: PCI_CAP_ID_VNDR, 0
     uint8 cap_vendor;
-    //Generic PCI field: next ptr
+    //Generic PCI field: next ptr, 1
     uint8 cap_next;
-    // Generic PCI field: capability length
-    uint8 cap_lenth;
-    // Identifies the structure
+    // Generic PCI field: capability length, 2
+    uint8 cap_len;
+    // Identifies the structure, 3
     uint8 cfg_type;
-    // Where to find it
+    // Where to find it, 4
     uint8 bar;
-    // Pad to full dword
+    // Pad to full dword, 5
     uint8 padding[3];
-    // Offset within bar
+    // Offset within bar, 8
     uint32 offset;
-    // Length of the structure, in bytes
+    // Length of the structure, in bytes, 12
     uint32 length;
 };
 
@@ -73,24 +73,24 @@ struct virtio_pci_cap {
 
 struct virtio_pci_common_cfg {
     /* About the whole device. */
-    uint32 device_feature_select;     /* read-write */
-    uint32 device_feature;            /* read-only for driver */
-    uint32 driver_feature_select;     /* read-write */
-    uint32 driver_feature;            /* read-write */
-    uint16 msix_config;               /* read-write */
-    uint16 num_queues;                /* read-only for driver */
-    uint8 device_status;               /* read-write */
-    uint8 config_generation;           /* read-only for driver */
+    uint32 device_feature_select;     /* read-write , 0*/
+    uint32 device_feature;            /* read-only for driver , 4*/
+    uint32 driver_feature_select;     /* read-write , 8*/
+    uint32 driver_feature;            /* read-write , 12*/
+    uint16 msix_config;               /* read-write , 20*/
+    uint16 num_queues;                /* read-only for driver , 22*/
+    uint8 device_status;               /* read-write , 24*/
+    uint8 config_generation;           /* read-only for driver , 25*/
 
     /* About a specific virtqueue. */
-    uint16 queue_select;              /* read-write */
-    uint16 queue_size;                /* read-write, power of 2, or 0. */
-    uint16 queue_msix_vector;         /* read-write */
-    uint16 queue_enable;              /* read-write */
-    uint16 queue_notify_off;          /* read-only for driver */
-    uint64 queue_desc;                /* read-write */
-    uint64 queue_avail;               /* read-write */
-    uint64 queue_used;                /* read-write */
+    uint16 queue_select;              /* read-write , 26*/
+    uint16 queue_size;                /* read-write, power of 2, or 0. , 28*/
+    uint16 queue_msix_vector;         /* read-write , 30*/
+    uint16 queue_enable;              /* read-write , 32*/
+    uint16 queue_notify_off;          /* read-only for driver , 34*/
+    uint64 queue_desc;                /* read-write , 36*/
+    uint64 queue_avail;               /* read-write , 42*/
+    uint64 queue_used;                /* read-write , 50*/
 };
 
 

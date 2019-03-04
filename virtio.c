@@ -33,14 +33,17 @@ void virtionet_negotiate(uint32 *features) {
  */
 int alloc_virt_dev(struct pci_device *dev, uint64 bar, uint32 offset) {
   int fd;
+
+  for (int i = 0; i < 6; i++) {
+      cprintf("Base: %p, size: %d\n", dev->bar_base[i], dev->bar_size[i]);
+  }
   struct virtio_device *vdev = (struct virtio_dev *)kalloc();
-  vdev->base = dev->bar_base[1] + offset;
-  vdev->size = dev->bar_size[1];
+  vdev->base = dev->membase;
+  vdev->size = dev->bar_size[4];
   vdev->irq = dev->irq_line;
-  cprintf("base: %p\n", vdev->base);
   vdev->conf = (struct virtio_pci_common_cfg *)vdev->base;
-  vdev->iobase = dev->iobase & 0xFFFC;
-  cprintf("First: %x, next: %x\n", dev->iobase, vdev->iobase);
+  vdev->iobase = dev->iobase;
+  cprintf("base: %x iobase: %x\n", dev->iobase, vdev->iobase);
 
   for (fd = 0; fd < NVIRTIO; vdev++) {
     if (virtdevs[fd] == 0) {
@@ -57,18 +60,86 @@ int alloc_virt_dev(struct pci_device *dev, uint64 bar, uint32 offset) {
 
   //     cprintf("%x ", inl(vdev->iobase+i));
   // }
-  for (int i = 0; i < 100; i++) {
-      if (i % 10 == 0) {
-          cprintf("\n");
-      }
-
-      cprintf("%x ", *(addr_t*)(vdev->base+i));
-  }
-
-  cprintf("\n");
 
   // TODO: move initialization to netcard conf
-  return conf_virtio(fd, &virtionet_negotiate);
+  return conf_virtio_mem(fd, &virtionet_negotiate);
+}
+
+int read_config(struct virtio_device *dev, uint32 offset) {
+    uint32 before, after;
+    uint32 val = -1;
+
+    do {
+        before = *(addr_t*)(dev->base + 25);
+        val = *(addr_t*)(dev->base + offset);
+        after = *(addr_t*)(dev->base + 25);
+    } while(after != before);
+
+    return val;
+}
+
+int write_config(struct virtio_device *dev, uint32 offset, void * val) {
+
+}
+
+int conf_virtio_mem(int fd, void (*negotiate)(uint32 *features)) {
+    struct virtio_device *dev = virtdevs[fd];
+    uint32 before, after;
+
+    // First reset the device
+    uint8 flag = VIRTIO_STATUS_RESET;
+    *(addr_t*)(dev->base + 20) = flag;
+
+    // Then acknowledge the device
+    flag |= VIRTIO_STATUS_ACKNOWLEDGE;
+    *(addr_t*)(dev->base + 20) = flag;
+
+    // Let the device know that we can drive it
+    flag |= VIRTIO_STATUS_DRIVER;
+    *(addr_t*)(dev->base + 20) = flag;
+
+    uint32 features;
+
+    do {
+        before = *(addr_t*)(dev->base + 25);
+        features = *(addr_t*)(dev->base + 4);
+        after = *(addr_t*)(dev->base + 25);
+    cprintf("before: %d, after: %d\n", before, after);
+    } while(after != before);
+
+    negotiate(&features);
+
+    *(addr_t*)(dev->base + 12) = features;
+
+
+    flag |= VIRTIO_STATUS_FEATURES_OK;
+    *(addr_t*)(dev->base + 20) = flag;
+
+    uint32 val;
+    do {
+        before = *(addr_t*) (dev->base + 25);
+        val = *(addr_t*)dev->base + 20;
+        after = *(addr_t*) (dev->base + 25);
+    } while(after != before);
+
+    if (val & VIRTIO_STATUS_FEATURES_OK == 0) {
+        cprintf("Unable to negotiate features\n");
+        return -1;
+    }
+
+    *(addr_t*)(dev->base + 26) = 0;
+
+    uint16 queue_size;
+
+    do {
+        before = *(addr_t*) (dev->base + 25);
+        queue_size = *(addr_t*)(dev->base + 28);
+        after = *(addr_t*) (dev->base + 25);
+    } while(after != before);
+
+    cprintf("queue 0 size: %d\n", queue_size);
+
+    return 0;
 }
 
 
@@ -83,6 +154,7 @@ int alloc_virt_dev(struct pci_device *dev, uint64 bar, uint32 offset) {
 int conf_virtio(int fd, void (*negotiate)(uint32 *features)) {
   struct virtio_device *dev = virtdevs[fd];
 
+  cprintf("Virtio iobase: %x\n", dev->iobase);
   // First reset the device
   uint8 flag = VIRTIO_STATUS_RESET;
   outb(dev->iobase+VIRTIO_DEV_STATUS_OFF, flag);
@@ -115,7 +187,7 @@ int conf_virtio(int fd, void (*negotiate)(uint32 *features)) {
     return -1;
   }
 
-  outw(dev->iobase+VIRTIO_QSEL_OFF, 2);
+  outw(dev->iobase+VIRTIO_QSEL_OFF, 0);
   uint16 num = inw(dev->iobase+VIRTIO_QSIZE_OFF);
   cprintf("Entries in queue %d: %d\n", 1, num);
 
