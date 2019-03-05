@@ -219,7 +219,12 @@ int config_virtio_net(struct pci_device* device) {
     return 0;
 }
 
-void setup_bar_access(struct pci_device *dev, uint8 cap_pointer, uint8 width, uint32 field_offset) {
+/*
+ * Sets up the window into the BAR. Width is the width of the field access and
+ * field_offset is the offset into the BAR.
+ */
+void setup_window(struct pci_device *dev, uint8 width, uint32 field_offset) {
+    uint8 cap_pointer = dev->capabalities[VIRTIO_PCI_CAP_PCI_CFG];
 
     // right now i'm only reading the common config bar
     // conf_write8(dev, cap_pointer + offsetof(struct virtio_pci_cap, bar), bar);
@@ -228,29 +233,69 @@ void setup_bar_access(struct pci_device *dev, uint8 cap_pointer, uint8 width, ui
 
 }
 
+void negotiate(uint32 *features) {
+  // do not use control queue
+  DISABLE_FEATURE(*features, VIRTIO_NET_F_CTRL_VQ);
+
+  DISABLE_FEATURE(*features, VIRTIO_NET_F_GUEST_TSO4);
+  DISABLE_FEATURE(*features, VIRTIO_NET_F_GUEST_TSO6);
+  DISABLE_FEATURE(*features, VIRTIO_NET_F_GUEST_UFO);
+  DISABLE_FEATURE(*features, VIRTIO_NET_F_MRG_RXBUF);
+  DISABLE_FEATURE(*features, VIRTIO_F_EVENT_IDX);
+
+  ENABLE_FEATURE(*features, VIRTIO_NET_F_CSUM);
+}
 
 int conf_virtio_pci_cap(struct pci_device *dev) {
     uint8 cap_pointer = dev->capabalities[VIRTIO_PCI_CAP_PCI_CFG];
+    uint64 window_off = cap_pointer + sizeof(struct virtio_pci_cap);
 
-//    for (int i = 0; i < 32; i++) {
-//        if (i % 4 == 0) {
-//            cprintf("\n");
-//        }
-//        uint32 val = confread8(dev, cap_pointer + i);
-//        cprintf("%p, ");
-//    }
-//
-//    cprintf("\n");
+    uint8 flag = VIRTIO_STATUS_RESET;
+    setup_window(dev, 1, offsetof(struct virtio_pci_common_cfg, device_status));
+    conf_write8(dev, window_off, flag);
+
+    flag |= VIRTIO_STATUS_ACKNOWLEDGE;
+    conf_write8(dev, window_off, flag);
+
+    flag |= VIRTIO_STATUS_DRIVER;
+    conf_write8(dev, window_off, flag);
+
+    setup_window(dev, 4, offsetof(struct virtio_pci_common_cfg, device_feature));
+    uint32 features = confread32(dev, window_off);
+
+    negotiate(&features);
+
+    setup_window(dev, 4, offsetof(struct virtio_pci_common_cfg, driver_feature));
+    conf_write32(dev, window_off, features);
+
+    flag |= VIRTIO_STATUS_FEATURES_OK;
+    setup_window(dev, 1, offsetof(struct virtio_pci_common_cfg, device_status));
+    conf_write8(dev, window_off, flag);
+
+    setup_window(dev, 1, offsetof(struct virtio_pci_common_cfg, device_status));
+    uint8 val = confread8(dev, window_off);
+
+    if (val & VIRTIO_STATUS_FEATURES_OK == 0) {
+        cprintf("Unable to negotiate features\n");
+        return -1;
+    }
 
     // Write to queue select
-    setup_bar_access(dev, cap_pointer, 2, offsetof(struct virtio_pci_common_cfg, queue_select));
+    setup_window(dev, 2, offsetof(struct virtio_pci_common_cfg, queue_select));
     conf_write16(dev, cap_pointer + sizeof(struct virtio_pci_cap), 0);
 
     // read back queue size
-    setup_bar_access(dev, cap_pointer, 2, offsetof(struct virtio_pci_common_cfg, queue_size));
-    uint32 bar_addr = confread32(dev, cap_pointer + sizeof(struct virtio_pci_cap));
+    setup_window(dev, 2, offsetof(struct virtio_pci_common_cfg, queue_size));
+    uint32 bar_addr = confread16(dev, cap_pointer + sizeof(struct virtio_pci_cap));
 
-    cprintf("Got bar window: %p\n", bar_addr);
+    cprintf("queue 0 size: %d\n", bar_addr);
+
+    flag |= VIRTIO_STATUS_DRIVER_OK;
+    conf_write8(dev, window_off, flag);
+
+    cprintf("Virtio driver configured and ready\n");
+
+    return 0;
 }
 
 
